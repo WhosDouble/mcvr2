@@ -6,15 +6,11 @@
     <title>mcDemo</title>
     <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-blink-controls/dist/aframe-blink-controls.min.js"></script>
-    <script src="script.js"></script>
   </head>
   <body>
     <a-scene>
       <a-assets>
-        <img
-          id="groundTexture"
-          src="https://cdn.aframe.io/a-painter/images/floor.jpg"
-        />
+        <img id="groundTexture" src="assets/32_flagstone_tiles.png" />
         <img id="skyTexture" src="assets/clouds1_up.bmp" />
         <img
           src="assets/i-revamped-the-old-cobblestone-texture-from-alpha-and-beta-v0-gahxr15y241c1.png"
@@ -42,7 +38,6 @@
       <a-cylinder
         id="ground"
         src="#groundTexture"
-        class="teleportable"
         radius="200"
         height="5"
       ></a-cylinder>
@@ -53,18 +48,11 @@
         radius="500"
       ></a-sky>
 
-      <a-entity
-        id="instructions"
-        position="0 3 -2"
-        text="value: Use left Thumbstick to teleport\nYour Right Trigger will place blocks\nPress A on your controller to bring up the menu\nAnd finally you can press the right grip button on your right controller to delete blocks; color: white; width: 3"
-        look-at="#a-camera"
-      ></a-entity>
-
-      <a-entity id="player" position="0 3 0">
+      <a-entity id="player" position="0 1.6 0">
         <a-entity
           id="movmentHand"
           hand-controls="hand: left"
-          blink-controls="cameraRig: #player; collisionEntities: .teleportable"
+          blink-controls="cameraRig: #player"
         ></a-entity>
         <a-entity
           id="blockHand"
@@ -72,7 +60,7 @@
           laser-controls
           raycaster="near: 0.5"
         ></a-entity>
-        <a-camera id="a-camera" position="0 0 0"></a-camera>
+        <a-camera position="0 0 0"></a-camera>
       </a-entity>
       <a-entity
         id="blockMenu"
@@ -103,5 +91,68 @@
         ></a-plane>
       </a-entity>
     </a-scene>
+
+    <!-- ✅ Your working JS should go here -->
+    <script>
+      let blockSize = 0.75;
+      let currentBlock = "cobblestoneBlock"; // this should match your mixin id
+
+      const player = document.querySelector("#player");
+      const rightHand = document.querySelector("#blockHand");
+      const blockMenu = document.querySelector("#blockMenu");
+      const leftHand = document.querySelector("#movmentHand");
+
+      rightHand.addEventListener("click", function (evt) {
+        let newVoxelEl = document.createElement("a-entity");
+        newVoxelEl.setAttribute("mixin", currentBlock);
+
+        let normal = evt.detail.intersection.face.normal.clone();
+        normal.multiplyScalar(blockSize);
+
+        let position = evt.detail.intersection.point.clone();
+        position.add(normal);
+
+        // grid snap
+        position.x = Math.round(position.x / blockSize) * blockSize;
+        position.y = Math.round(position.y / blockSize) * blockSize;
+        position.z = Math.round(position.z / blockSize) * blockSize;
+
+        newVoxelEl.setAttribute("position", position);
+
+        this.sceneEl.appendChild(newVoxelEl);
+      });
+
+      rightHand.addEventListener("abuttondown", () => {
+        const menu = document.querySelector("#blockMenu");
+        if (menu) {
+          menu.object3D.visible = !menu.object3D.visible;
+        }
+      });
+
+      rightHand.addEventListener("gripdown", () => {
+        deleteTargetedBlock();
+      });
+
+      blockMenu.querySelectorAll(".selectable-block").forEach((el) => {
+        el.addEventListener("click", () => {
+          currentBlock = el.getAttribute("mixin");
+          blockMenu.object3D.visible = false;
+        });
+      });
+
+      function deleteTargetedBlock() {
+        const raycaster = rightHand.components.raycaster;
+
+        if (!raycaster) return;
+
+        const intersections = raycaster.intersections;
+        if (intersections.length === 0) return;
+
+        const intersectedEl = intersections[0].object.el;
+        if (intersectedEl && intersectedEl.getAttribute("mixin")) {
+          intersectedEl.parentNode.removeChild(intersectedEl);
+        }
+      }
+    </script>
   </body>
 </html>
