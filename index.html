@@ -16,32 +16,40 @@
           src="assets/i-revamped-the-old-cobblestone-texture-from-alpha-and-beta-v0-gahxr15y241c1.png"
           id="cobblestoneTexture"
         />
+        <img id="woodBlockTexture" src="assets/13530476-cover_l.jpg" />
+        <img id="grassBlockTexture" src="assets/11635-v2.jpg" />
         <a-mixin
-          id="voxel"
+          id="cobblestoneBlock"
           geometry="primitive: box; height: 0.75; width: 0.75; depth: 0.75"
           material="src: #cobblestoneTexture"
+        ></a-mixin>
+        <a-mixin
+          id="woodBlock"
+          geometry="primitive: box; height: 0.75; width: 0.75; depth: 0.75"
+          material="src: #woodBlockTexture"
+        ></a-mixin>
+        <a-mixin
+          id="grassBlock"
+          geometry="primitive: box; height: 0.75; width: 0.75; depth: 0.75"
+          material="src: #grassBlockTexture"
         ></a-mixin>
       </a-assets>
 
       <a-cylinder
         id="ground"
         src="#groundTexture"
-        radius="32"
-        height="0.1"
+        radius="200"
+        height="5"
       ></a-cylinder>
       <a-sky
         id="background"
         src="#skyTexture"
         theta-length="90"
-        radius="30"
+        radius="500"
       ></a-sky>
 
       <a-entity id="player">
-        <a-entity
-          id="teleHand"
-          hand-controls="hand: left"
-          blink-controls="collisionEntities: #ground"
-        ></a-entity>
+        <a-entity id="movmentHand" hand-controls="hand: left"></a-entity>
         <a-entity
           id="blockHand"
           hand-controls="hand: right"
@@ -50,32 +58,167 @@
         ></a-entity>
         <a-camera></a-camera>
       </a-entity>
+      <a-entity
+        id="blockMenu"
+        visible="false"
+        position="0 1.5 -1"
+        rotation="0 0 0"
+      >
+        <a-plane
+          id="cobblestonePreview"
+          mixin="cobblestoneBlock"
+          position="-0.6 0 0"
+          scale="0.5 0.5 0.5"
+          class="selectable-block"
+        ></a-plane>
+        <a-plane
+          id="woodPreview"
+          mixin="woodBlock"
+          position="0 0 0"
+          scale="0.5 0.5 0.5"
+          class="selectable-block"
+        ></a-plane>
+        <a-plane
+          id="grassPreview"
+          mixin="grassBlock"
+          position="0.6 0 0"
+          scale="0.5 0.5 0.5"
+          class="selectable-block"
+        ></a-plane>
+      </a-entity>
     </a-scene>
 
     <!-- ✅ Your working JS should go here -->
     <script>
       let blockSize = 0.75;
-      document
-        .querySelector("#blockHand")
-        .addEventListener("click", function (evt) {
-          let newVoxelEl = document.createElement("a-entity");
-          newVoxelEl.setAttribute("mixin", "voxel");
+      let currentBlock = "cobbleStoneBlock"; // this should match your mixin id
 
-          let normal = evt.detail.intersection.face.normal.clone();
-          normal.multiplyScalar(blockSize);
+      const player = document.querySelector("#player");
+      const rightHand = document.querySelector("#blockHand");
+      const blockMenu = document.querySelector("#blockMenu");
 
-          let position = evt.detail.intersection.point.clone();
-          position.add(normal);
+      rightHand.addEventListener("click", function (evt) {
+        let newVoxelEl = document.createElement("a-entity");
+        newVoxelEl.setAttribute("mixin", currentBlock);
 
-          //grid snap
-          position.x = Math.round(position.x / blockSize) * blockSize;
-          position.y = Math.round(position.y / blockSize) * blockSize;
-          position.z = Math.round(position.z / blockSize) * blockSize;
+        let normal = evt.detail.intersection.face.normal.clone();
+        normal.multiplyScalar(blockSize);
 
-          newVoxelEl.setAttribute("position", position);
+        let position = evt.detail.intersection.point.clone();
+        position.add(normal);
 
-          this.sceneEl.appendChild(newVoxelEl);
+        // grid snap
+        position.x = Math.round(position.x / blockSize) * blockSize;
+        position.y = Math.round(position.y / blockSize) * blockSize;
+        position.z = Math.round(position.z / blockSize) * blockSize;
+
+        newVoxelEl.setAttribute("position", position);
+
+        this.sceneEl.appendChild(newVoxelEl);
+      });
+
+      rightHand.addEventListener("abuttondown", () => {
+        const menu = document.querySelector("#blockMenu");
+        if (menu) {
+          menu.object3D.visible = !menu.object3D.visible;
+        }
+      });
+
+      rightHand.addEventListener("gripdown", () => {
+        deleteTargetedBlock();
+      });
+
+      rightHand.addEventListener("axismove", (evt) => {
+        const [x, y] = evt.detail.axis;
+        const speed = 0.05;
+        const rotation = player.getAttribute("rotation").y;
+
+        const rad = THREE.MathUtils.degToRad(rotation);
+        const forwardX = -Math.sin(rad);
+        const forwardZ = -Math.cos(rad);
+        const rightX = Math.cos(rad);
+        const rightZ = -Math.sin(rad);
+
+        const deltaX = rightX * x * speed + forwardX * y * speed;
+        const deltaZ = rightZ * x * speed + forwardZ * y * speed;
+
+        const pos = player.getAttribute("position");
+        player.setAttribute("position", {
+          x: pos.x + deltaX,
+          y: pos.y,
+          z: pos.z + deltaZ,
         });
+
+        if (y !== 0) {
+          // Raycast in front of player at foot height (assume player Y pos is feet)
+          const stepHeight = 0.75;
+          const footHeight = pos.y;
+
+          // Calculate next horizontal position
+          const nextX = pos.x + deltaX;
+          const nextZ = pos.z + deltaZ;
+
+          // Raycast or check if block is at next position with Y between footHeight and footHeight + stepHeight
+          // Simplified: We'll check if there's a block occupying that space
+          // For simplicity, you can loop through blocks and check their positions
+
+          const blocks = document.querySelectorAll("[mixin]");
+          let canStepUp = false;
+
+          blocks.forEach((block) => {
+            const bPos = block.getAttribute("position");
+            // Check if block is in the next horizontal position (within a small margin)
+            const distX = Math.abs(bPos.x - nextX);
+            const distZ = Math.abs(bPos.z - nextZ);
+            if (distX < blockSize / 2 && distZ < blockSize / 2) {
+              // Check if block top is within step height above player's feet
+              if (bPos.y <= footHeight + stepHeight && bPos.y > footHeight) {
+                canStepUp = true;
+              }
+            }
+          });
+
+          // If we can step up, move player up to block top (block y + blockSize)
+          if (canStepUp) {
+            player.setAttribute("position", {
+              x: nextX,
+              y: footHeight + stepHeight,
+              z: nextZ,
+            });
+            return; // Early exit, moved player already
+          }
+        }
+
+        // --- STEP-UP LOGIC END ---
+
+        // Normal movement (no step)
+        player.setAttribute("position", {
+          x: pos.x + deltaX,
+          y: pos.y,
+          z: pos.z + deltaZ,
+        });
+      });
+
+      blockMenu.querySelectorAll(".selectable-block").forEach((el) => {
+        el.addEventListener("click", () => {
+          currentBlock = el.getAttribute("mixin");
+          blockMenu.object3D.visible = false;
+        });
+      });
+
+      function deleteTargetedBlock() {
+        const raycaster = rightHand.components.raycaster;
+
+        if (!raycaster) return;
+
+        const intersections = raycaster.intersections;
+        if (intersections.length === 0) return;
+
+        const intersectedEl = intersections[0].object.el;
+        if (intersectedEl && intersectedEl.getAttribute("mixin")) {
+          intersectedEl.parentNode.removeChild(intersectedEl);
+        }
+      }
     </script>
   </body>
 </html>
