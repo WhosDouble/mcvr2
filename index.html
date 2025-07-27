@@ -48,15 +48,19 @@
         radius="500"
       ></a-sky>
 
-      <a-entity id="player">
-        <a-entity id="movmentHand" hand-controls="hand: left"></a-entity>
+      <a-entity id="player" position="0 1.6 0">
+        <a-entity
+          id="movmentHand"
+          hand-controls="hand: left"
+          blink-controls="cameraRig: #player"
+        ></a-entity>
         <a-entity
           id="blockHand"
           hand-controls="hand: right"
           laser-controls
           raycaster="near: 0.5"
         ></a-entity>
-        <a-camera></a-camera>
+        <a-camera position="0 0 0"></a-camera>
       </a-entity>
       <a-entity
         id="blockMenu"
