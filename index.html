@@ -96,6 +96,7 @@
       const player = document.querySelector("#player");
       const rightHand = document.querySelector("#blockHand");
       const blockMenu = document.querySelector("#blockMenu");
+      const leftHand = document.querySelector("#movmentHand");
 
       rightHand.addEventListener("click", function (evt) {
         let newVoxelEl = document.createElement("a-entity");
@@ -128,10 +129,14 @@
         deleteTargetedBlock();
       });
 
-      rightHand.addEventListener("axismove", (evt) => {
-        const [x, y] = evt.detail.axis;
+      leftHand.addEventListener("axismove", (evt) => {
+        if (!evt.detail || !evt.detail.axis) return; // safety check
+
+        const [x, y] = evt.detail.axis; // thumbstick x,y
+        if (x === 0 && y === 0) return; // no movement
+
         const speed = 0.05;
-        const rotation = player.getAttribute("rotation").y;
+        const rotation = player.getAttribute("rotation").y || 0;
 
         const rad = THREE.MathUtils.degToRad(rotation);
         const forwardX = -Math.sin(rad);
@@ -143,60 +148,54 @@
         const deltaZ = rightZ * x * speed + forwardZ * y * speed;
 
         const pos = player.getAttribute("position");
-        player.setAttribute("position", {
-          x: pos.x + deltaX,
-          y: pos.y,
-          z: pos.z + deltaZ,
-        });
 
-        if (y !== 0) {
-          // Raycast in front of player at foot height (assume player Y pos is feet)
-          const stepHeight = 0.75;
-          const footHeight = pos.y;
+        // Calculate next horizontal position
+        const nextX = pos.x + deltaX;
+        const nextZ = pos.z + deltaZ;
+        const footHeight = pos.y;
 
-          // Calculate next horizontal position
-          const nextX = pos.x + deltaX;
-          const nextZ = pos.z + deltaZ;
+        const stepHeight = 0.75; // max height player can step up
 
-          // Raycast or check if block is at next position with Y between footHeight and footHeight + stepHeight
-          // Simplified: We'll check if there's a block occupying that space
-          // For simplicity, you can loop through blocks and check their positions
+        const blocks = Array.from(document.querySelectorAll("[mixin]"));
 
-          const blocks = document.querySelectorAll("[mixin]");
-          let canStepUp = false;
+        let canStepUp = false;
+        let stepUpY = footHeight;
 
-          blocks.forEach((block) => {
-            const bPos = block.getAttribute("position");
-            // Check if block is in the next horizontal position (within a small margin)
-            const distX = Math.abs(bPos.x - nextX);
-            const distZ = Math.abs(bPos.z - nextZ);
-            if (distX < blockSize / 2 && distZ < blockSize / 2) {
-              // Check if block top is within step height above player's feet
-              if (bPos.y <= footHeight + stepHeight && bPos.y > footHeight) {
-                canStepUp = true;
-              }
+        for (const block of blocks) {
+          const bPos = block.getAttribute("position");
+
+          // Check horizontal proximity (allow some margin)
+          const distX = Math.abs(bPos.x - nextX);
+          const distZ = Math.abs(bPos.z - nextZ);
+
+          if (distX < blockSize * 0.6 && distZ < blockSize * 0.6) {
+            // Check if block top is within step height above player's feet
+            const blockTopY = bPos.y + blockSize / 2;
+            if (
+              blockTopY <= footHeight + stepHeight &&
+              blockTopY > footHeight
+            ) {
+              canStepUp = true;
+              stepUpY = blockTopY;
+              break; // found step-up block, no need to check further
             }
-          });
-
-          // If we can step up, move player up to block top (block y + blockSize)
-          if (canStepUp) {
-            player.setAttribute("position", {
-              x: nextX,
-              y: footHeight + stepHeight,
-              z: nextZ,
-            });
-            return; // Early exit, moved player already
           }
         }
 
-        // --- STEP-UP LOGIC END ---
-
-        // Normal movement (no step)
-        player.setAttribute("position", {
-          x: pos.x + deltaX,
-          y: pos.y,
-          z: pos.z + deltaZ,
-        });
+        if (canStepUp) {
+          player.setAttribute("position", {
+            x: nextX,
+            y: stepUpY,
+            z: nextZ,
+          });
+        } else {
+          // Normal horizontal movement (no step up)
+          player.setAttribute("position", {
+            x: nextX,
+            y: footHeight,
+            z: nextZ,
+          });
+        }
       });
 
       blockMenu.querySelectorAll(".selectable-block").forEach((el) => {
