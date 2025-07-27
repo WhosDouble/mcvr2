@@ -10,18 +10,16 @@
   <body>
     <a-scene>
       <a-assets>
+        <img id="groundTexture" src="assets/32_flagstone_tiles.png" />
+        <img id="skyTexture" src="assets/clouds1_up.bmp" />
         <img
-          id="groundTexture"
-          src="https://cdn.aframe.io/a-painter/images/floor.jpg"
-        />
-        <img
-          id="skyTexture"
-          src="https://cdn.aframe.io/a-painter/images/sky.jpg"
+          src="assets/i-revamped-the-old-cobblestone-texture-from-alpha-and-beta-v0-gahxr15y241c1.png"
+          id="cobblestoneTexture"
         />
         <a-mixin
           id="voxel"
-          geometry="primitive: box; height: 0.25; width: 0.25; depth: 0.25"
-          material="color: #4CC3D9"
+          geometry="primitive: box; height: 0.75; width: 0.75; depth: 0.75"
+          material="src: #cobblestoneTexture"
         ></a-mixin>
       </a-assets>
 
@@ -56,6 +54,7 @@
 
     <!-- ✅ Your working JS should go here -->
     <script>
+      let blockSize = 0.75;
       document
         .querySelector("#blockHand")
         .addEventListener("click", function (evt) {
@@ -63,10 +62,15 @@
           newVoxelEl.setAttribute("mixin", "voxel");
 
           let normal = evt.detail.intersection.face.normal.clone();
-          normal.multiplyScalar(0.25);
+          normal.multiplyScalar(blockSize);
 
           let position = evt.detail.intersection.point.clone();
           position.add(normal);
+
+          //grid snap
+          position.x = Math.round(position.x / blockSize) * blockSize;
+          position.y = Math.round(position.y / blockSize) * blockSize;
+          position.z = Math.round(position.z / blockSize) * blockSize;
 
           newVoxelEl.setAttribute("position", position);
 
