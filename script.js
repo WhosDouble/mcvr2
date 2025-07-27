@@ -7,7 +7,7 @@ const blockMenu = document.querySelector("#blockMenu");
 const leftHand = document.querySelector("#movmentHand");
 const camera = document.querySelector("#a-camera");
 
-rightHand.addEventListener("click", function (evt) {
+rightHand.addEventListener("triggerdown", function (evt) {
   let newVoxelEl = document.createElement("a-entity");
   newVoxelEl.setAttribute("mixin", currentBlock);
 
